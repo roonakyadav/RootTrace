@@ -62,7 +62,7 @@ tasks:
 action_space:
   type: structured
   schema:
-    action_type: string (enum of 10 values)
+    action_type: string (enum of 11 values)
     target: string (optional)
   actions:
     - restart_service
@@ -70,11 +70,12 @@ action_space:
     - isolate_service
     - check_logs
     - check_metrics
-    - scale_service
+    - scale          # FINALE FIX 5: Changed from scale_service to match enum
     - drain_traffic
     - restore_traffic
     - optimize_db
     - escalate
+    - ignore         # FINALE FIX 5: Added missing ignore action
 
 observation_space:
   - services: list of service state objects

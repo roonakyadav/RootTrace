@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from models.schemas import Action, StepResult, State, EpisodeResult
+from models.schemas import Action, StepResult, State, EpisodeResult, ActionType
 from env.core import IncidentEnv
 from env.tasks import get_task, TASKS
 from env.grader import IncidentGrader
@@ -7,9 +7,19 @@ from typing import Dict, List, Any, Optional
 from pydantic import BaseModel
 from baseline.baseline_agent import BaselineAgent
 from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
 
-# ✅ DEFINE APP FIRST (CRITICAL)
-app = FastAPI(title="AI Operations Incident Response Environment")
+# FINALE FIX 5: Use lifespan pattern instead of deprecated @app.on_event
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("========================================")
+    print("🚀 APP STARTED SUCCESSFULLY")
+    print("📡 SERVER RUNNING ON PORT 7860")
+    print("========================================")
+    yield
+
+# ✅ DEFINE APP WITH LIFESPAN (CRITICAL)
+app = FastAPI(title="AI Operations Incident Response Environment", lifespan=lifespan)
 
 class ResetRequest(BaseModel):
     task_id: Optional[str] = "easy"
@@ -155,6 +165,22 @@ async def get_current_state(task_id: Optional[str] = "easy"):
     env = sessions[task_id]
     return env.state().model_dump()
 
+# FINALE FIX 4: Add /validate endpoint for quick sanity check
+@app.get("/validate")
+async def validate():
+    """Quick validation endpoint to verify all tasks work correctly."""
+    results = {}
+    for task in TASKS:
+        try:
+            env = IncidentEnv(task, seed=42)
+            state = env.get_state()
+            dummy_action = Action(action_type=ActionType.CHECK_LOGS, target=task.initial_services[0].name)
+            result = env.step(dummy_action)
+            results[task.id] = "ok" if result["reward"] is not None else "fail"
+        except Exception as e:
+            results[task.id] = f"error: {str(e)}"
+    return {"validation": results}
+
 # Get state by task_id
 @app.get("/state/{task_id}")
 async def get_state(task_id: str):
@@ -252,16 +278,9 @@ import os as _os
 if _os.path.isdir("static"):
     app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
-@app.on_event("startup")
-async def startup_event():
-    print("========================================")
-    print("🚀 APP STARTED SUCCESSFULLY")
-    print("📡 SERVER RUNNING ON PORT 7860")
-    print("========================================")
-
-if __name__ == "__main__":
-    main()
-
 def main(): 
     import uvicorn 
     uvicorn.run(app, host="0.0.0.0", port=7860)
+
+if __name__ == "__main__":
+    main()

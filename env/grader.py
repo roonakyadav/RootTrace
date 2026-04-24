@@ -166,6 +166,20 @@ class IncidentGrader:
         if observation_loop_detected and state.root_cause_step is None:
             final_score = min(final_score, 0.35)
 
+        # Strong penalty for lucky guess (no diagnosis before fix)
+        if failure_type == "Lucky Guesser":
+            final_score *= 0.3
+
+        # Enforce minimum steps for high score
+        if state.time_step <= 2:
+            final_score *= 0.4
+
+        # Reward proper reasoning sequence
+        if failure_type == "Efficient Reasoner":
+            final_score += 0.2
+
+        final_score = max(0.0, min(1.0, final_score))
+
         final_score = max(0.0, min(1.0, final_score))
 
         damage_score, health_penalty = self._calculate_damage_and_health_penalty(state, task)
@@ -433,9 +447,12 @@ class IncidentGrader:
         return capped_score
 
     def _calculate_efficiency_score(self, state: State, task: Task) -> float:
+        # BUG FIX 7: Use squared ratio to better reward early resolution
+        # This makes solving in step 2 much better than step 5 on a 10-step task
         if task.max_steps == 0:
             return 0.0
-        return max(0.0, 1.0 - (state.time_step - 1) / task.max_steps)
+        step_ratio = (state.time_step - 1) / task.max_steps
+        return max(0.0, 1.0 - (step_ratio ** 2))
 
     def _calculate_cost_efficiency_score(self, state: State, task: Task = None) -> float:
         max_reasonable_cost = float(task.success_conditions.get("cost_limit", 15.0)) if task and task.success_conditions else 15.0
@@ -457,8 +474,9 @@ class IncidentGrader:
         """Calculate step-wise reward for new and existing actions."""
         reward = 0.0
 
-        if action.action_type == ActionType.CHECK_METRICS:
-            reward += 0.05
+        # BUG FIX 8: Equal reward for all diagnosis actions (CHECK_LOGS and CHECK_METRICS)
+        if action.action_type in [ActionType.CHECK_LOGS, ActionType.CHECK_METRICS]:
+            reward += 0.10  # Both diagnosis actions get equal reward
 
         elif action.action_type == ActionType.DRAIN_TRAFFIC:
             target = env._get_service(action.target)
@@ -498,8 +516,9 @@ class IncidentGrader:
             reward += 0.4
         elif reward_info["type"] == "temporary_fix":
             reward += 0.2
-        elif reward_info["type"] == "diagnosis" and action.action_type != ActionType.CHECK_METRICS:
-            reward += 0.1
+        elif reward_info["type"] == "diagnosis":
+            # Already rewarded above, no double-counting
+            pass
         elif reward_info["type"] == "useless_action":
             reward -= 0.2
         elif reward_info["type"] == "wrong_fix" and action.action_type != ActionType.ROLLBACK_SERVICE:

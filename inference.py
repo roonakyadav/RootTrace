@@ -8,7 +8,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- Fix 4: Environment variable handling ---
+# --- Environment variable handling ---
+# FINALE FIX 1: Default to HF router for hackathon judges
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 ENV_URL = os.getenv("ENV_URL", "https://roonakyadav-ai-incident-openenv-final.hf.space")
 MODEL_NAME = os.getenv("MODEL_NAME")
@@ -16,12 +17,14 @@ HF_TOKEN = os.getenv("HF_TOKEN")
 SUCCESS_SCORE_THRESHOLD = 0.6
 MAX_STEPS = 15
 
-# Use OpenAI-compatible API if HF_TOKEN is present
-if HF_TOKEN:
+# Use HF_TOKEN only (removed Groq dependency for hackathon compatibility)
+API_KEY = HF_TOKEN
+
+if API_KEY:
     try:
         from openai import OpenAI
         client = OpenAI(
-            api_key=HF_TOKEN,
+            api_key=API_KEY,
             base_url=API_BASE_URL
         )
     except ImportError:
@@ -48,7 +51,7 @@ ACTION_MAPPING = {
 VALID_ACTIONS = [
     "restart_service", "rollback_service", "isolate_service", "check_logs", 
     "check_metrics", "scale_service", "drain_traffic", "restore_traffic", 
-    "optimize_db", "escalate"
+    "optimize_db", "escalate", "ignore"  # ISSUE 5 FIX: Added missing ignore action
 ]
 
 def get_model_message(state: Dict[str, Any], task_objective: str, last_action: Optional[Dict[str, Any]], last_reward: float) -> str:
@@ -70,13 +73,17 @@ def get_model_message(state: Dict[str, Any], task_objective: str, last_action: O
         target = last_action.get("target", "none")
         last_action_str = f"{last_action['action_type']}/{target} → reward: {last_reward:+.2f}"
     
-    available_actions = "restart_service, rollback_service, isolate_service, check_logs, check_metrics, scale_service, drain_traffic, restore_traffic, optimize_db, escalate"
+    available_actions = "restart_service, rollback_service, isolate_service, check_logs, check_metrics, scale_service, drain_traffic, restore_traffic, optimize_db, escalate, ignore"
+    
+    # FINALE FIX 3: Add diagnosed targets to prevent re-diagnosing same services
+    diagnosed = state.get("diagnosed_targets", [])
+    diagnosed_str = ", ".join(diagnosed) if diagnosed else "None"
     
     prompt = f"""--- INCIDENT RESPONSE TASK ---
 Objective: {task_objective}
 Step: {step} / {MAX_STEPS}
 
-As a senior SRE, your goal is to restore all services to a healthy state. Analyze the service status, logs, and alerts to identify the root cause and take action. Prioritize actions that resolve the underlying issue. Available actions are: `restart_service`, `rollback_service`, `isolate_service`, `check_logs`, `check_metrics`, `scale_service`, `drain_traffic`, `restore_traffic`, `optimize_db`, `escalate`.
+As a senior SRE, your goal is to restore all services to a healthy state. Analyze the service status, logs, and alerts to identify the root cause and take action. Prioritize actions that resolve the underlying issue. Available actions are: `restart_service`, `rollback_service`, `isolate_service`, `check_logs`, `check_metrics`, `scale_service`, `drain_traffic`, `restore_traffic`, `optimize_db`, `escalate`, `ignore`.
 
 **Analyze the following data and provide the best next action to resolve the incident. If you are stuck, try a different action. Do not repeat the same action twice in a row.**
 
@@ -88,6 +95,8 @@ RECENT LOGS (last 5):
 
 ALERTS:
 {alerts}
+
+ALREADY DIAGNOSED: {diagnosed_str}
 
 LAST ACTION: {last_action_str}
 

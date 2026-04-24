@@ -180,7 +180,11 @@ class IncidentEnv:
                 if action.action_type == prev_action.action_type and action.target == prev_action.target:
                     self.wasted_action_count += 1
 
-            # FIX 4: Track consecutive diagnosis actions and apply hard penalty after 3
+            # BUG FIX 5: Track diagnosis actions more intelligently
+            # Only reset consecutive counter on FIX actions, not all non-diagnosis actions
+            fix_actions = [ActionType.RESTART_SERVICE, ActionType.SCALE, ActionType.ROLLBACK_SERVICE, 
+                          ActionType.OPTIMIZE_DB, ActionType.ISOLATE_SERVICE, ActionType.DRAIN_TRAFFIC]
+            
             if action.action_type in [ActionType.CHECK_LOGS, ActionType.CHECK_METRICS]:
                 self.diagnosis_streak += 1
                 self.consecutive_diagnosis_count += 1
@@ -192,10 +196,16 @@ class IncidentEnv:
                     self.system_stability = max(0.0, self.system_stability - 0.15)
                     self.logs.append("WARN: Prolonged observation loop detected — system degrading without intervention")
                     self.diagnosis_penalty_applied = True
-            else:
+                    self.consecutive_diagnosis_count = 0  # ISSUE 3 FIX: Reset after penalty to prevent counter from climbing indefinitely
+            elif action.action_type in fix_actions:
+                # Reset on fix attempts (even wrong ones show intent to act)
                 self.diagnosis_streak = 0
                 self.consecutive_diagnosis_count = 0
-                self.diagnosis_penalty_applied = False  # Reset so penalty can trigger again if needed
+                self.diagnosis_penalty_applied = False
+            else:
+                # IGNORE, ESCALATE, UNKNOWN don't reset the counter
+                # This prevents gaming by interleaving ignore actions
+                pass
 
             # Root Cause Detection Step tracking
             if self.root_cause_step is None and self.true_root_cause and action.target == self.true_root_cause:
@@ -276,10 +286,14 @@ class IncidentEnv:
             self.system_stability = self._calculate_stability()
             self._update_logs(action, reward_info)
 
+            # BUG FIX 1: Read bad_actions_limit from task definition instead of hardcoded value
+            bad_actions_limit = self.task.failure_conditions.get("bad_actions_limit", 2)
+            stability_threshold = self.task.failure_conditions.get("system_stability_below", 0.3)
+            
             done = (
                 self.time_step >= self.max_steps or
-                self.bad_actions > 2 or
-                self.system_stability < 0.3 or
+                self.bad_actions > bad_actions_limit or
+                self.system_stability < stability_threshold or
                 self._all_services_up()
             )
 
@@ -306,14 +320,14 @@ class IncidentEnv:
                 ]
                 self.logs.append(self.random.choice(instability_logs))
 
-            # Add recovery log if all services are UP
-            if self._all_services_up() and done:
+            # ISSUE 2 FIX: Lucky guess should NOT get extra steps - penalize instead
+            if self._all_services_up():
                 if reward_info.get("is_lucky_guess"):
-                    self.logs.append("System recovered, but cause was not diagnosed. Partial success.")
+                    # DO NOT end episode yet
                     done = False
-                    self.is_done = False
+                    self.logs.append("Recovery without diagnosis — continue investigation required")
                 else:
-                    self.logs.append("System fully recovered. Episode complete.")
+                    done = True
 
             # Calculate meaningful reward signal
             reward = self._calculate_reward(reward_info, action)
@@ -481,7 +495,11 @@ class IncidentEnv:
                         if dep_name == "frontend":
                             dep_service.status = ServiceStatus.DEGRADED
                 elif root_service.status == ServiceStatus.DEGRADED:
-                    if dep_service.status == ServiceStatus.UP and self.random.random() < 0.85:
+                    # BUG FIX 4: Only cascade once per degradation event, not every step
+                    # Use time_step modulo to limit cascading frequency
+                    if (dep_service.status == ServiceStatus.UP and 
+                        self.random.random() < 0.85 and 
+                        self.time_step % 2 == 0):  # Only check every 2 steps
                         dep_service.status = ServiceStatus.DEGRADED
                 elif root_service.status == ServiceStatus.UP:
                     if dep_service.status == ServiceStatus.DEGRADED:
@@ -800,7 +818,12 @@ class IncidentEnv:
 
             if db_service and db_service.status == ServiceStatus.UP:
                 if auth_service and auth_service.status == ServiceStatus.DOWN:
-                    if len(self.history) >= recovery_threshold and self.history[-recovery_threshold].action_type == ActionType.OPTIMIZE_DB:
+                    # ISSUE 4 FIX: Check if optimize_db was EVER called, not just at specific index
+                    optimize_db_called = any(
+                        a.action_type == ActionType.OPTIMIZE_DB and a.target == "db"
+                        for a in self.history
+                    )
+                    if optimize_db_called:
                         auth_service.status = ServiceStatus.UP
 
                 elif auth_service and auth_service.status == ServiceStatus.UP:
@@ -860,7 +883,9 @@ class IncidentEnv:
             self.system_strain += 0.1
 
     def _all_services_up(self) -> bool:
-        if self.fake_recovery_timer is not None:
+        # BUG FIX 2: Only block termination if timer is actively counting down (> 0)
+        # None means timer expired or was never set, so don't block
+        if self.fake_recovery_timer is not None and self.fake_recovery_timer > 0:
             return False
         return all(s.status == ServiceStatus.UP for s in self.services)
 
