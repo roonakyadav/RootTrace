@@ -201,11 +201,11 @@ The grader classifies each episode into one of five failure types, visible in th
 
 | Type | Behavior | Condition |
 |:---|:---|:---|
-| **Efficient Reasoner** ✅ | Root cause fixed within 2 steps, no symptom fixes, no observation loop | Ideal performance |
-| **Symptom Chaser** ❌ | Fixed downstream services before root cause, triggered re-degradation | Common failure mode |
-| **Lucky Guesser** ⚠️ | Fixed root cause without prior diagnosis | Partial credit only |
-| **Stuck in Observation Loop** 🔄 | ≥3 consecutive diagnosis actions with no fix attempt | Hard-capped at 0.35 |
-| **Late Corrector** ⏰ | Root cause eventually fixed, but after step 5 | Reduced efficiency score |
+| **Efficient Reasoner**  | Root cause fixed within 2 steps, no symptom fixes, no observation loop | Ideal performance |
+| **Symptom Chaser**  | Fixed downstream services before root cause, triggered re-degradation | Common failure mode |
+| **Lucky Guesser**  | Fixed root cause without prior diagnosis | Partial credit only |
+| **Stuck in Observation Loop**  | ≥3 consecutive diagnosis actions with no fix attempt | Hard-capped at 0.35 |
+| **Late Corrector**  | Root cause eventually fixed, but after step 5 | Reduced efficiency score |
 
 ---
 
@@ -239,7 +239,7 @@ Six scenarios across three difficulty levels, each testing different reasoning c
 
 ### Hard: Complex Reasoning
 
-#### hard-bad-deployment ⚠️
+#### hard-bad-deployment 
 **Max steps:** 10 | **Objective:** Rollback faulty auth deployment after proper diagnosis
 
 A new `auth-v2.1.0` deployment introduced a goroutine leak. **8 of 12 initial log lines blame the database.** The DB is perfectly healthy. Running `optimize_db` makes things worse.
@@ -527,14 +527,14 @@ python3 tests/diagnostic_benchmark.py
 ```
 
 ### Test Coverage
-- ✅ All 6 task scenarios
-- ✅ Environment reset and step operations
-- ✅ Grading and scoring logic
-- ✅ Episode termination conditions
-- ✅ Baseline agent performance
-- ✅ Anti-reward-hacking mechanisms
-- ✅ Dynamic environment degradation
-- ✅ Dependency chain cascading
+-  All 6 task scenarios
+-  Environment reset and step operations
+-  Grading and scoring logic
+-  Episode termination conditions
+-  Baseline agent performance
+-  Anti-reward-hacking mechanisms
+-  Dynamic environment degradation
+-  Dependency chain cascading
 
 ---
 
