@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from itertools import count
-
 from env.runtime import RuntimeState
 from models.schemas import Evidence, EvidenceType
 
@@ -9,7 +7,7 @@ from models.schemas import Evidence, EvidenceType
 class EvidenceStore:
     def __init__(self, runtime: RuntimeState) -> None:
         self.runtime = runtime
-        self._sequence = count()
+        self._next_sequence = len(runtime.evidence)
 
     def add(
         self,
@@ -21,7 +19,7 @@ class EvidenceStore:
     ) -> Evidence:
         source_name = source or self._infer_source(content)
         evidence = Evidence(
-            id=f"{evidence_type.value}-{timestamp}-{next(self._sequence)}",
+            id=f"{evidence_type.value}-{timestamp}-{self._next_sequence}",
             type=evidence_type,
             source=source_name,
             content=content,
@@ -29,6 +27,7 @@ class EvidenceStore:
             reliability=max(0.0, min(1.0, reliability)),
         )
         self.runtime.evidence.append(evidence)
+        self._next_sequence += 1
         return evidence
 
     def ingest_log(self, content: str, timestamp: int, reliability: float = 0.7) -> Evidence:
