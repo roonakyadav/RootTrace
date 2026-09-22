@@ -22,26 +22,14 @@ class DependencyGraph:
 
     @classmethod
     def for_task(cls, task) -> "DependencyGraph":
-        topologies = {
-            "hard-cascading-failure": {
-                "db": ("auth",),
-                "auth": ("payments",),
-                "payments": ("frontend",),
-            },
-            "hard-cascading-ambiguous": {
-                "payments": ("auth", "frontend"),
-                "auth": ("frontend",),
-            },
-            "medium-payments-degraded": {
-                "auth": ("payments",),
-                "payments": ("frontend",),
-            },
-        }
-        default = {
+        if getattr(task, "dependencies", None):
+            return cls.from_mapping(task.dependencies)
+
+        # Compatibility fallback for older Task objects.
+        return cls.from_mapping({
             "auth": ("frontend",),
             "payments": ("frontend",),
-        }
-        return cls.from_mapping(topologies.get(task.id, default))
+        })
 
     def items(self):
         return self.edges.items()

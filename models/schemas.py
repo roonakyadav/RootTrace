@@ -109,3 +109,4 @@ class Task(BaseModel):
     diagnosis_requirements: List[Dict[str, str]] = Field(default_factory=list)
     resolution_actions: List[Dict[str, str]] = Field(default_factory=list)
     fault_policy: Dict[str, Any] = Field(default_factory=dict)
+    dependencies: Dict[str, List[str]] = Field(default_factory=dict)

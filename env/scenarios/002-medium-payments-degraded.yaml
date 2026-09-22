@@ -17,6 +17,9 @@ resolution_actions:
 diagnosis_requirements:
   - action: check_metrics
     target: payments
+dependencies:
+  auth: [payments]
+  payments: [frontend]
 services:
   - name: auth
     status: up

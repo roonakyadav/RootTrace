@@ -16,6 +16,9 @@ resolution_actions:
 diagnosis_requirements:
   - action: check_logs
     target: auth
+dependencies:
+  auth: [frontend]
+  payments: [frontend]
 services:
   - name: auth
     status: down

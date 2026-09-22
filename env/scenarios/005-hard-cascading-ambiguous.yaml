@@ -23,6 +23,9 @@ fault_policy:
   autonomous_degradation:
     enabled: true
     interval: 3
+dependencies:
+  payments: [auth, frontend]
+  auth: [frontend]
 services:
   - name: auth
     status: degraded

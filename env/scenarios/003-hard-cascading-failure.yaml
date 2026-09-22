@@ -23,6 +23,10 @@ fault_policy:
     interval: 2
     exclude_services:
       - db
+dependencies:
+  db: [auth]
+  auth: [payments]
+  payments: [frontend]
 services:
   - name: db
     status: degraded
