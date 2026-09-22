@@ -58,6 +58,7 @@ class IncidentEnv:
             self.task,
             self.random,
         )
+        self.observability.seed_initial_logs()
         self.dynamics = DynamicsEngine(
             self.runtime,
             self.dependency_graph,
