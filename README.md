@@ -99,14 +99,14 @@ It also detects behavioral patterns such as symptom chasing, lucky guessing, obs
 ```text
 RootTrace/
 ├── api/                 # HTTP interface
-├── baseline/            # Baseline agents and agent utilities
+├── agents/              # Interchangeable agent implementations
 ├── env/                 # Environment dynamics, tasks, and grading
 ├── models/              # Typed state/action schemas
 ├── tests/               # Environment and system tests
 ├── training/            # Rollout collection and GRPO experiments
 ├── static/              # Lightweight demo UI
-├── inference.py         # LLM evaluation entry point
-├── openenv.yaml         # Environment metadata
+├── cli.py               # Public command-line interface
+├── openenv.yaml         # Optional ecosystem metadata
 ├── pyproject.toml       # Python package metadata
 ├── requirements.txt     # Runtime dependencies
 └── Dockerfile           # Container deployment
@@ -145,7 +145,19 @@ curl -X POST http://localhost:7860/step \
   -d '{"task_id":"hard-bad-deployment","action_type":"check_logs","target":"auth"}'
 ```
 
-LLM evaluation uses the inference entry point and requires an inference provider token.
+### Run a benchmark
+
+Use the public CLI:
+
+```bash
+python -m cli validate
+python -m cli benchmark --agent dependency-aware --seed 42 --seed 43
+```
+
+Available agents currently include `dependency-aware`, `random`, and `llm`.
+
+For LLM evaluation, set `LLM_API_KEY` (or `HF_TOKEN`) and optionally override `LLM_BASE_URL` and `LLM_MODEL`.
+
 
 ## Design direction
 
