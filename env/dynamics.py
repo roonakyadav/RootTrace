@@ -5,7 +5,7 @@ import random
 from env.dependencies import DependencyGraph
 from env.faults import FaultInjector
 from env.runtime import RuntimeState
-from models.schemas import ServiceStatus, Task, TaskDifficulty
+from models.schemas import ActionType, ServiceStatus, Task, TaskDifficulty
 
 
 class DynamicsEngine:
