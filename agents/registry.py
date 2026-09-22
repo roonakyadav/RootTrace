@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Callable, Dict
 
 from agents.base import Agent
+from agents.llm import LLMAgent
 from agents.random_agent import RandomAgent
 from agents.rule_based import DependencyAwareAgent
 
@@ -13,6 +14,7 @@ AgentFactory = Callable[[], Agent]
 AGENTS: Dict[str, AgentFactory] = {
     "dependency-aware": DependencyAwareAgent,
     "random": RandomAgent,
+    "llm": LLMAgent,
 }
 
 
