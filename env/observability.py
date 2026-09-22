@@ -17,6 +17,11 @@ class ObservabilityEngine:
         self.task = task
         self.rng = rng
         self.evidence = EvidenceStore(runtime)
+        self.seed_initial_logs()
+
+    def seed_initial_logs(self) -> None:
+        for log in self.runtime.logs:
+            self.evidence.ingest_log(log, 0)
 
     def refresh_alerts(self) -> None:
         alerts = []
