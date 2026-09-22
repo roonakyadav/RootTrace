@@ -2,6 +2,7 @@ import random
 from typing import List, Dict, Any
 from models.schemas import State, Service, ServiceStatus, Action, ActionType, Task, TaskDifficulty
 from env.grader import IncidentGrader
+from env.dependencies import DependencyGraph
 
 class IncidentEnv:
     ACTION_COSTS = {
@@ -59,36 +60,14 @@ class IncidentEnv:
         self.fake_recovery_timer = None
         self.root_cause_fixed = False
 
-        self.dependencies = self._initialize_dependencies()
+        self.dependency_graph = DependencyGraph.for_task(self.task)
+        self.dependencies = self.dependency_graph.as_dict()
         self.grader = IncidentGrader()
         self._update_metrics()
         self._update_alerts()  # Initial alerts based on status
         self.system_stability = self._calculate_stability()  # Correctly calculate initial stability
         self.previous_stability = self.system_stability  # Store previous stability for reward calculation
         self.is_done = False  # Track episode termination state
-
-    def _initialize_dependencies(self) -> Dict[str, List[str]]:
-        if self.task.id == "hard-cascading-failure":
-            return {
-                "db": ["auth"],
-                "auth": ["payments"],
-                "payments": ["frontend"]
-            }
-        elif self.task.id == "hard-cascading-ambiguous":
-            return {
-                "payments": ["auth", "frontend"],
-                "auth": ["frontend"]
-            }
-        elif self.task.id == "medium-payments-degraded":
-            return {
-                "auth": ["payments"],
-                "payments": ["frontend"]
-            }
-        else:
-            return {
-                "auth": ["frontend"],
-                "payments": ["frontend"]
-            }
 
     def _update_metrics(self):
         for service in self.services:
@@ -104,7 +83,7 @@ class IncidentEnv:
 
             # Apply effect of isolate_service (latency increase on dependents)
             for isolated_name in self.isolated_services:
-                if isolated_name in self.dependencies and service.name in self.dependencies[isolated_name]:
+                if service.name in self.dependency_graph.dependents_of(isolated_name):
                     service.latency *= 1.5
 
             # Apply effect of drain_traffic (reduce error_rate on frontend)
@@ -472,7 +451,7 @@ class IncidentEnv:
         return next((s for s in self.services if s.name == name), None)
 
     def _apply_cascading_failures(self):
-        for root, dependents in self.dependencies.items():
+        for root, dependents in self.dependency_graph.items():
             if root in self.isolated_services:
                 continue
 
@@ -507,7 +486,7 @@ class IncidentEnv:
 
         for service in self.services:
             if service.status == ServiceStatus.DEGRADED:
-                upstreams = [root for root, deps in self.dependencies.items() if service.name in deps]
+                upstreams = self.dependency_graph.upstreams_of(service.name)
 
                 if upstreams:
                     dependencies_healthy = all(
@@ -546,14 +525,14 @@ class IncidentEnv:
 
         for s in self.services:
             if s.status == ServiceStatus.DEGRADED:
-                for root, dependents in self.dependencies.items():
+                for root, dependents in self.dependency_graph.items():
                     if s.name in dependents:
                         root_service = next((svc for svc in self.services if svc.name == root), None)
                         if root_service and root_service.status != ServiceStatus.UP:
                             new_logs.append(f"{s.name.capitalize()} degraded due to {root} failure")
                             break
             elif s.status == ServiceStatus.DOWN:
-                for root, dependents in self.dependencies.items():
+                for root, dependents in self.dependency_graph.items():
                     if s.name in dependents:
                         root_service = next((svc for svc in self.services if svc.name == root), None)
                         if root_service and root_service.status == ServiceStatus.DOWN:
@@ -671,7 +650,7 @@ class IncidentEnv:
                         self.partial_fixes.append(target_service.name)
                     return {"type": "partial_fix", "target": action.target}
 
-            for root, dependents in self.dependencies.items():
+            for root, dependents in self.dependency_graph.items():
                 if action.target in dependents:
                     upstream = next((s for s in self.services if s.name == root), None)
                     if upstream and upstream.status != ServiceStatus.UP:
@@ -860,7 +839,7 @@ class IncidentEnv:
 
         # Pick a candidate: prefer UP services that are dependents of broken services
         candidates = []
-        for root, dependents in self.dependencies.items():
+        for root, dependents in self.dependency_graph.items():
             root_svc = self._get_service(root)
             if root_svc and root_svc.status != ServiceStatus.UP:
                 for dep_name in dependents:
