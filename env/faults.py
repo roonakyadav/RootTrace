@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import random
-from typing import Dict, List
+from typing import Mapping
 
 from env.dependencies import DependencyGraph
 from env.runtime import RuntimeState
-from models.schemas import ServiceStatus
+from models.schemas import AutonomousDegradationPolicy, ServiceStatus
 
 
 class FaultInjector:
@@ -20,15 +20,26 @@ class FaultInjector:
         self.dependency_graph = dependency_graph
         self.rng = rng
 
-    def autonomous_degradation(self, policy) -> bool:
-        if not policy.enabled:
+    def autonomous_degradation(
+        self,
+        policy: AutonomousDegradationPolicy | Mapping[str, object],
+    ) -> bool:
+        enabled = (
+            policy.enabled
+            if isinstance(policy, AutonomousDegradationPolicy)
+            else bool(policy.get("enabled", False))
+        )
+        if not enabled or self.runtime.root_cause_fixed:
             return False
-        if self.runtime.root_cause_fixed:
-            return False
+
+        excluded = (
+            set(policy.exclude_services)
+            if isinstance(policy, AutonomousDegradationPolicy)
+            else set(policy.get("exclude_services", []))
+        )
 
         candidates = self._dependent_candidates()
         if not candidates:
-            excluded = set(policy.exclude_services)
             candidates = [
                 service
                 for service in self.runtime.services
