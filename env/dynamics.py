@@ -29,12 +29,12 @@ class DynamicsEngine:
         self.surface_symptom_target = surface_symptom_target
 
     def propagate_failures(self) -> None:
-        policy = self.task.dynamics.get("propagation", {})
-        if not policy.get("enabled", False):
+        policy = self.task.dynamics.propagation
+        if not policy.enabled:
             return
 
-        degraded_interval = max(1, int(policy.get("degraded_interval", 2)))
-        degraded_probability = float(policy.get("degraded_probability", 0.85))
+        degraded_interval = max(1, int(policy.degraded_interval))
+        degraded_probability = float(policy.degraded_probability)
 
         for root, dependents in self.dependency_graph.items():
             if root in self.runtime.isolated_services:
@@ -50,9 +50,7 @@ class DynamicsEngine:
                     continue
 
                 if root_service.status == ServiceStatus.DOWN:
-                    dependent.status = ServiceStatus(
-                        policy.get("downstream_on_down", ServiceStatus.DOWN.value)
-                    )
+                    dependent.status = policy.downstream_on_down
                 elif (
                     root_service.status == ServiceStatus.DEGRADED
                     and dependent.status == ServiceStatus.UP
@@ -104,7 +102,7 @@ class DynamicsEngine:
         self.recover_dependencies()
         self.propagate_failures()
 
-        fault_policy = self.task.fault_policy.get("autonomous_degradation", {})
+        fault_policy = self.task.fault_policy.autonomous_degradation
         interval = int(fault_policy.get("interval", 0))
         if (
             self.runtime.time_step > 0
@@ -114,11 +112,11 @@ class DynamicsEngine:
         ):
             self.fault_injector.autonomous_degradation(fault_policy)
 
-        periodic_logs = self.task.dynamics.get("periodic_logs", {})
-        every = int(periodic_logs.get("interval", 0))
+        periodic_logs = self.task.dynamics.periodic_logs
+        every = int(periodic_logs.interval)
         if every > 0 and self.runtime.time_step % every == 0:
             self.runtime.logs.append(
-                str(periodic_logs.get("message", "System dynamics advanced"))
+                str(periodic_logs.message)
             )
 
     # Compatibility seams used by the existing IncidentEnv controller.
@@ -130,7 +128,7 @@ class DynamicsEngine:
         self.evolve()
 
     def _autonomous_degradation(self):
-        policy = self.task.fault_policy.get("autonomous_degradation", {})
+        policy = self.task.fault_policy.autonomous_degradation
         return self.fault_injector.autonomous_degradation(policy)
 
     def _get_service(self, name: str):

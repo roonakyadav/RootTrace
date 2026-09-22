@@ -20,15 +20,15 @@ class FaultInjector:
         self.dependency_graph = dependency_graph
         self.rng = rng
 
-    def autonomous_degradation(self, policy: Dict) -> bool:
-        if not policy.get("enabled", False):
+    def autonomous_degradation(self, policy) -> bool:
+        if not policy.enabled:
             return False
         if self.runtime.root_cause_fixed:
             return False
 
         candidates = self._dependent_candidates()
         if not candidates:
-            excluded = set(policy.get("exclude_services", []))
+            excluded = set(policy.exclude_services)
             candidates = [
                 service
                 for service in self.runtime.services

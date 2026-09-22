@@ -37,8 +37,8 @@ def validate_task(task: Task) -> List[str]:
     valid_actions = {action.value for action in ActionType if action != ActionType.UNKNOWN}
 
     for index, rule in enumerate(task.resolution_actions):
-        action = rule.get("action")
-        target = rule.get("target")
+        action = rule.action.value
+        target = rule.target
         if action not in valid_actions:
             errors.append(f"resolution_actions[{index}] has invalid action {action!r}")
         if target not in service_set:
@@ -51,8 +51,8 @@ def validate_task(task: Task) -> List[str]:
             )
 
     for index, rule in enumerate(task.diagnosis_requirements):
-        action = rule.get("action")
-        target = rule.get("target")
+        action = rule.action.value
+        target = rule.target
         if action not in VALID_DIAGNOSIS_ACTIONS:
             errors.append(
                 f"diagnosis_requirements[{index}] has invalid diagnostic action {action!r}"
@@ -73,15 +73,12 @@ def validate_task(task: Task) -> List[str]:
             if target == source:
                 errors.append(f"service {source!r} cannot depend on itself")
 
-    fault_policy = task.fault_policy.get("autonomous_degradation", {})
-    if fault_policy.get("enabled"):
-        try:
-            interval = int(fault_policy.get("interval", 0))
-        except (TypeError, ValueError):
-            interval = 0
+    fault_policy = task.fault_policy.autonomous_degradation
+    if fault_policy.enabled:
+        interval = int(fault_policy.interval)
         if interval <= 0:
             errors.append("autonomous_degradation.interval must be greater than zero")
-        for name in fault_policy.get("exclude_services", []):
+        for name in fault_policy.exclude_services:
             if name not in service_set:
                 errors.append(
                     f"fault_policy.exclude_services contains unknown service {name!r}"

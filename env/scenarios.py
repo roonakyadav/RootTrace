@@ -3,7 +3,7 @@ from typing import List, Optional
 
 import yaml
 
-from models.schemas import Service, ServiceStatus, Task, TaskDifficulty
+from models.schemas import DiagnosisRequirement, FaultPolicy, DynamicsPolicy, ResolutionRule, Service, ServiceStatus, Task, TaskDifficulty
 from env.validation import validate_tasks
 
 
@@ -42,14 +42,14 @@ def _build_task(data: dict) -> Task:
         initial_alerts=list(data.get("initial_alerts", [])),
         true_root_cause=data.get("true_root_cause"),
         surface_symptom_target=data.get("surface_symptom_target"),
-        diagnosis_requirements=list(data.get("diagnosis_requirements", [])),
-        resolution_actions=list(data.get("resolution_actions", [])),
-        fault_policy=dict(data.get("fault_policy", {})),
+        diagnosis_requirements=[DiagnosisRequirement.model_validate(item) for item in data.get("diagnosis_requirements", [])],
+        resolution_actions=[ResolutionRule.model_validate(item) for item in data.get("resolution_actions", [])],
+        fault_policy=FaultPolicy.model_validate(data.get("fault_policy", {})),
         dependencies={
             str(source): [str(target) for target in targets]
             for source, targets in dict(data.get("dependencies", {})).items()
         },
-        dynamics=dict(data.get("dynamics", {})),
+        dynamics=DynamicsPolicy.model_validate(data.get("dynamics", {})),
     )
 
 

@@ -54,6 +54,45 @@ class Action(BaseModel):
     target: str
 
 
+class DiagnosisRequirement(BaseModel):
+    action: ActionType
+    target: str
+
+
+class ResolutionRule(BaseModel):
+    action: ActionType
+    target: str
+
+
+class AutonomousDegradationPolicy(BaseModel):
+    enabled: bool = False
+    interval: int = 0
+    exclude_services: List[str] = Field(default_factory=list)
+
+
+class PropagationPolicy(BaseModel):
+    enabled: bool = False
+    downstream_on_down: ServiceStatus = ServiceStatus.DOWN
+    degraded_interval: int = 2
+    degraded_probability: float = 0.85
+
+
+class PeriodicLogPolicy(BaseModel):
+    interval: int = 0
+    message: str = "System dynamics advanced"
+
+
+class DynamicsPolicy(BaseModel):
+    propagation: PropagationPolicy = Field(default_factory=PropagationPolicy)
+    periodic_logs: PeriodicLogPolicy = Field(default_factory=PeriodicLogPolicy)
+
+
+class FaultPolicy(BaseModel):
+    autonomous_degradation: AutonomousDegradationPolicy = Field(
+        default_factory=AutonomousDegradationPolicy
+    )
+
+
 class Reward(BaseModel):
     value: float
     reason: str = ""
@@ -135,8 +174,8 @@ class Task(BaseModel):
     failure_conditions: Dict[str, Any] = Field(default_factory=dict)
     true_root_cause: Optional[str] = None
     surface_symptom_target: Optional[str] = None
-    diagnosis_requirements: List[Dict[str, str]] = Field(default_factory=list)
-    resolution_actions: List[Dict[str, str]] = Field(default_factory=list)
-    fault_policy: Dict[str, Any] = Field(default_factory=dict)
+    diagnosis_requirements: List[DiagnosisRequirement] = Field(default_factory=list)
+    resolution_actions: List[ResolutionRule] = Field(default_factory=list)
+    fault_policy: FaultPolicy = Field(default_factory=FaultPolicy)
     dependencies: Dict[str, List[str]] = Field(default_factory=dict)
-    dynamics: Dict[str, Any] = Field(default_factory=dict)
+    dynamics: DynamicsPolicy = Field(default_factory=DynamicsPolicy)
