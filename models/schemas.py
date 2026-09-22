@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from enum import Enum
 
@@ -47,14 +47,14 @@ class State(BaseModel):
     total_cost: float
     system_stability: float
     risky_actions_count: int
-    dependencies: Dict[str, List[str]] = {}
+    dependencies: Dict[str, List[str]] = Field(default_factory=dict)
     system_strain: float = 0.0
     symptom_fix_count: int = 0
     root_cause_step: Optional[int] = None
     delayed_failure_count: int = 0
     wasted_action_count: int = 0
     failure_type: Optional[str] = None
-    diagnosed_targets: List[str] = []
+    diagnosed_targets: List[str] = Field(default_factory=list)
     hidden_risk: float = 0.0
     side_effect_triggered: bool = False
 
@@ -106,5 +106,5 @@ class Task(BaseModel):
     failure_conditions: Dict[str, Any] = {}
     true_root_cause: Optional[str] = None
     surface_symptom_target: Optional[str] = None
-    diagnosis_requirements: List[Dict[str, str]] = []
-    resolution_actions: List[Dict[str, str]] = []
+    diagnosis_requirements: List[Dict[str, str]] = Field(default_factory=list)
+    resolution_actions: List[Dict[str, str]] = Field(default_factory=list)
