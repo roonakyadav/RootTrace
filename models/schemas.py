@@ -1,11 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
 from enum import Enum
+from typing import Any, Dict, List, Optional
 
-class ServiceStatus(str, Enum):
-    UP = "up"
-    DOWN = "down"
-    DEGRADED = "degraded"
+from pydantic import BaseModel, Field
+
 
 class EvidenceType(str, Enum):
     LOG = "log"
@@ -24,11 +21,18 @@ class Evidence(BaseModel):
     reliability: float = 1.0
 
 
+class ServiceStatus(str, Enum):
+    UP = "up"
+    DOWN = "down"
+    DEGRADED = "degraded"
+
+
 class Service(BaseModel):
     name: str
     status: ServiceStatus
     latency: float = 0.0
     error_rate: float = 0.0
+
 
 class ActionType(str, Enum):
     RESTART_SERVICE = "restart_service"
@@ -44,14 +48,17 @@ class ActionType(str, Enum):
     IGNORE = "ignore"
     UNKNOWN = "unknown"
 
+
 class Action(BaseModel):
     action_type: ActionType
     target: str
+
 
 class Reward(BaseModel):
     value: float
     reason: str = ""
     partial: bool = False
+
 
 class State(BaseModel):
     services: List[Service]
@@ -66,7 +73,6 @@ class State(BaseModel):
     risky_actions_count: int
     dependencies: Dict[str, List[str]] = Field(default_factory=dict)
     evidence: List[Evidence] = Field(default_factory=list)
-    dynamics: Dict[str, Any] = Field(default_factory=dict)
     system_strain: float = 0.0
     symptom_fix_count: int = 0
     root_cause_step: Optional[int] = None
@@ -77,12 +83,14 @@ class State(BaseModel):
     hidden_risk: float = 0.0
     side_effect_triggered: bool = False
 
+
 class StepResult(BaseModel):
     state: State
     reward: float
     reward_info: Optional[Reward] = None
     done: bool
     info: Optional[Dict[str, Any]] = None
+
 
 class EpisodeResult(BaseModel):
     final_score: float
@@ -105,12 +113,14 @@ class EpisodeResult(BaseModel):
     delayed_failure_count: int = 0
     wasted_action_count: int = 0
     failure_type: Optional[str] = None
-    diagnosed_targets: List[str] = []
+    diagnosed_targets: List[str] = Field(default_factory=list)
+
 
 class TaskDifficulty(str, Enum):
     EASY = "easy"
     MEDIUM = "medium"
     HARD = "hard"
+
 
 class Task(BaseModel):
     id: str
@@ -121,11 +131,12 @@ class Task(BaseModel):
     initial_alerts: List[str]
     max_steps: int
     goal: str = ""
-    success_conditions: Dict[str, Any] = {}
-    failure_conditions: Dict[str, Any] = {}
+    success_conditions: Dict[str, Any] = Field(default_factory=dict)
+    failure_conditions: Dict[str, Any] = Field(default_factory=dict)
     true_root_cause: Optional[str] = None
     surface_symptom_target: Optional[str] = None
     diagnosis_requirements: List[Dict[str, str]] = Field(default_factory=list)
     resolution_actions: List[Dict[str, str]] = Field(default_factory=list)
     fault_policy: Dict[str, Any] = Field(default_factory=dict)
     dependencies: Dict[str, List[str]] = Field(default_factory=dict)
+    dynamics: Dict[str, Any] = Field(default_factory=dict)
