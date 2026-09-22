@@ -19,4 +19,5 @@ dependencies = [
 ]
 
 [project.scripts]
+roottrace = "cli:main"
 roottrace-server = "api.main:main"
