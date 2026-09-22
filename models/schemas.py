@@ -106,3 +106,5 @@ class Task(BaseModel):
     failure_conditions: Dict[str, Any] = {}
     true_root_cause: Optional[str] = None
     surface_symptom_target: Optional[str] = None
+    diagnosis_requirements: List[Dict[str, str]] = []
+    resolution_actions: List[Dict[str, str]] = []

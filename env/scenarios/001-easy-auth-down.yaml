@@ -9,6 +9,13 @@ success_conditions:
 failure_conditions:
   bad_actions_limit: 2
   max_steps_exceeded: true
+true_root_cause: auth
+resolution_actions:
+  - action: restart_service
+    target: auth
+diagnosis_requirements:
+  - action: check_logs
+    target: auth
 services:
   - name: auth
     status: down

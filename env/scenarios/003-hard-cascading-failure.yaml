@@ -10,6 +10,13 @@ success_conditions:
 failure_conditions:
   bad_actions_limit: 3
   system_stability_below: 0.3
+true_root_cause: db
+resolution_actions:
+  - action: optimize_db
+    target: db
+diagnosis_requirements:
+  - action: check_logs
+    target: db
 services:
   - name: db
     status: degraded

@@ -9,6 +9,15 @@ success_conditions:
 failure_conditions:
   bad_actions_limit: 4
   system_stability_below: 0.25
+true_root_cause: payments
+resolution_actions:
+  - action: rollback_service
+    target: payments
+diagnosis_requirements:
+  - action: check_logs
+    target: payments
+  - action: check_metrics
+    target: payments
 services:
   - name: auth
     status: degraded

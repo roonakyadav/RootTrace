@@ -11,6 +11,14 @@ failure_conditions:
   system_stability_below: 0.3
 true_root_cause: auth
 surface_symptom_target: db
+resolution_actions:
+  - action: rollback_service
+    target: auth
+diagnosis_requirements:
+  - action: check_logs
+    target: auth
+  - action: check_metrics
+    target: auth
 services:
   - name: auth
     status: degraded

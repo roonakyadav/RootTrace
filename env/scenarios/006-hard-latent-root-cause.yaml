@@ -11,6 +11,16 @@ failure_conditions:
   system_stability_below: 0.25
 true_root_cause: payments
 surface_symptom_target: auth
+resolution_actions:
+  - action: restart_service
+    target: payments
+  - action: rollback_service
+    target: payments
+diagnosis_requirements:
+  - action: check_logs
+    target: payments
+  - action: check_metrics
+    target: payments
 services:
   - name: auth
     status: degraded
