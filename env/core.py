@@ -9,6 +9,7 @@ from env.faults import FaultInjector
 from env.observability import ObservabilityEngine
 from env.dynamics import DynamicsEngine
 from env.runtime import RuntimeState
+from env.snapshot import EnvironmentSnapshot
 from env.telemetry import TelemetryEngine
 
 class IncidentEnv:
@@ -75,7 +76,45 @@ class IncidentEnv:
         self.runtime.is_done = False  # Track episode termination state
 
     def _update_metrics(self) -> None:
-        # Kept as a compatibility seam for the existing runtime.
+        # Kept as a compatibility seam for the existin    def snapshot(self) -> EnvironmentSnapshot:
+        return EnvironmentSnapshot(
+            runtime=deepcopy(self.runtime),
+            rng_state=self.random.getstate(),
+        )
+
+    def restore(self, snapshot: EnvironmentSnapshot) -> None:
+        restored = snapshot.copy()
+        self.runtime = restored.runtime
+        self.random.setstate(restored.rng_state)
+
+        self.telemetry = TelemetryEngine(
+            self.runtime,
+            self.dependency_graph,
+            self.random,
+            self.RISK_THRESHOLD,
+        )
+        self.fault_injector = FaultInjector(
+            self.runtime,
+            self.dependency_graph,
+            self.random,
+        )
+        self.observability = ObservabilityEngine(
+            self.runtime,
+            self.dependency_graph,
+            self.task,
+            self.random,
+        )
+        self.dynamics = DynamicsEngine(
+            self.runtime,
+            self.dependency_graph,
+            self.task,
+            self.fault_injector,
+            self.random,
+            self.true_root_cause,
+            self.surface_symptom_target,
+        )
+
+g runtime.
         self.telemetry.refresh()
 
     def get_state(self) -> State:
