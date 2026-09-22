@@ -1,20 +1,6 @@
----
-title: RootTrace
-emoji: 🧭
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-pinned: false
-tags:
-  - ai-agents
-  - incident-response
-  - sre
-  - devops
-  - agent-evaluation
-  - reinforcement-learning
----
-
 # RootTrace
+
+[![CI](https://github.com/roonakyadav/RootTrace/actions/workflows/ci.yml/badge.svg)](https://github.com/roonakyadav/RootTrace/actions/workflows/ci.yml)
 
 **A causal incident environment for evaluating AI agents under noisy telemetry, cascading failures, and operational risk.**
 
@@ -39,7 +25,7 @@ Simple agent benchmarks often make the correct action obvious. RootTrace is desi
 
 The agent is evaluated on **how** it solved an incident, not only whether the final state recovered.
 
-## Current environment
+## Quick start
 
 The current prototype models four services:
 
@@ -121,28 +107,31 @@ cd RootTrace
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-
-python3 -m api.main
+pip install -e .
 ```
 
-Then validate the environment:
+Validate the bundled scenarios:
 
 ```bash
-curl http://localhost:7860/health
-curl http://localhost:7860/tasks
-curl http://localhost:7860/validate
+roottrace validate
 ```
 
-To interact with an episode:
+Run a benchmark:
 
 ```bash
-curl -X POST http://localhost:7860/reset \
-  -H "Content-Type: application/json" \
-  -d '{"task_id":"hard-bad-deployment","seed":42}'
+roottrace benchmark --agent dependency-aware --seed 42 --seed 43
+```
 
-curl -X POST http://localhost:7860/step \
-  -H "Content-Type: application/json" \
-  -d '{"task_id":"hard-bad-deployment","action_type":"check_logs","target":"auth"}'
+Compare agents:
+
+```bash
+roottrace compare --agent dependency-aware --agent random --seed 42
+```
+
+Start the HTTP API:
+
+```bash
+roottrace serve
 ```
 
 ### Run a benchmark
