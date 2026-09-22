@@ -71,4 +71,5 @@ def load_tasks(directory: Path = SCENARIO_DIR) -> List[Task]:
         seen_ids.add(task.id)
         tasks.append(task)
 
+    validate_tasks(tasks)
     return tasks
