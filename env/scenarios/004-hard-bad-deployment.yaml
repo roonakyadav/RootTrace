@@ -26,6 +26,12 @@ fault_policy:
 dependencies:
   auth: [frontend]
   payments: [frontend]
+dynamics:
+  propagation:
+    enabled: true
+    downstream_on_down: down
+    degraded_interval: 2
+    degraded_probability: 0.85
 services:
   - name: auth
     status: degraded

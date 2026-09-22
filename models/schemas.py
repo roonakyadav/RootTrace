@@ -48,6 +48,7 @@ class State(BaseModel):
     system_stability: float
     risky_actions_count: int
     dependencies: Dict[str, List[str]] = Field(default_factory=dict)
+    dynamics: Dict[str, Any] = Field(default_factory=dict)
     system_strain: float = 0.0
     symptom_fix_count: int = 0
     root_cause_step: Optional[int] = None

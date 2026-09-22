@@ -49,6 +49,7 @@ def _build_task(data: dict) -> Task:
             str(source): [str(target) for target in targets]
             for source, targets in dict(data.get("dependencies", {})).items()
         },
+        dynamics=dict(data.get("dynamics", {})),
     )
 
 

@@ -1,23 +1,24 @@
 import unittest
 
 from env.core import IncidentEnv
-from env.dynamics import DynamicsEngine
 from env.tasks import get_task
 
 
-class DynamicsEngineTests(unittest.TestCase):
-    def test_environment_owns_dynamics_engine(self):
-        env = IncidentEnv(get_task("hard-cascading-failure"), seed=42)
-        self.assertIsInstance(env.dynamics, DynamicsEngine)
-        self.assertIs(env.dynamics.runtime, env.runtime)
-        self.assertIs(env.dynamics.dependency_graph, env.dependency_graph)
-
-    def test_cascade_wrapper_delegates(self):
-        env = IncidentEnv(get_task("easy-auth-down"), seed=42)
-        before = [service.status for service in env.runtime.services]
+class DynamicsPolicyTests(unittest.TestCase):
+    def test_latent_symptom_does_not_auto_recover(self):
+        env = IncidentEnv(get_task("hard-latent-root-cause"), seed=42)
         env._apply_cascading_failures()
-        after = [service.status for service in env.runtime.services]
-        self.assertEqual(before, after)
+        auth = next(service for service in env.runtime.services if service.name == "auth")
+        self.assertEqual(auth.status.value, "degraded")
+
+    def test_root_fix_allows_dependency_recovery(self):
+        env = IncidentEnv(get_task("hard-cascading-failure"), seed=42)
+        db = next(service for service in env.runtime.services if service.name == "db")
+        auth = next(service for service in env.runtime.services if service.name == "auth")
+        db.status = "up"
+        env.runtime.root_cause_fixed = True
+        env._apply_cascading_failures()
+        self.assertEqual(auth.status.value, "up")
 
 
 if __name__ == "__main__":

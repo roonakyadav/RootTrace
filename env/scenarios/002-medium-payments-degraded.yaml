@@ -20,6 +20,15 @@ diagnosis_requirements:
 dependencies:
   auth: [payments]
   payments: [frontend]
+dynamics:
+  propagation:
+    enabled: true
+    downstream_on_down: down
+    degraded_interval: 2
+    degraded_probability: 0.85
+  periodic_logs:
+    interval: 3
+    message: "Spurious log entry at scheduled dynamics interval"
 services:
   - name: auth
     status: up
