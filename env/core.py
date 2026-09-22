@@ -76,7 +76,10 @@ class IncidentEnv:
         self.runtime.is_done = False  # Track episode termination state
 
     def _update_metrics(self) -> None:
-        # Kept as a compatibility seam for the existin    def snapshot(self) -> EnvironmentSnapshot:
+        # Kept as a compatibility seam for the existing runtime.
+        self.telemetry.refresh()
+
+    def snapshot(self) -> EnvironmentSnapshot:
         return EnvironmentSnapshot(
             runtime=deepcopy(self.runtime),
             rng_state=self.random.getstate(),
@@ -113,9 +116,6 @@ class IncidentEnv:
             self.true_root_cause,
             self.surface_symptom_target,
         )
-
-g runtime.
-        self.telemetry.refresh()
 
     def get_state(self) -> State:
         return State(
