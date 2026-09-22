@@ -4,6 +4,7 @@ from typing import List, Optional
 import yaml
 
 from models.schemas import Service, ServiceStatus, Task, TaskDifficulty
+from env.validation import validate_tasks
 
 
 SCENARIO_DIR = Path(__file__).with_name("scenarios")
