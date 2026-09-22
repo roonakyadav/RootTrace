@@ -24,7 +24,7 @@ class EpisodeRunner:
         if resolved_task is None:
             raise ValueError(f"Unknown task: {task}")
 
-        agent.reset()
+        agent.reset(seed)
         env = IncidentEnv(resolved_task, seed=seed)
         trace = EpisodeTrace(
             task_id=resolved_task.id,

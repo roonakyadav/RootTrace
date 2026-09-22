@@ -12,8 +12,8 @@ class RandomAgent:
         self.seed = seed
         self.rng = random.Random(seed)
 
-    def reset(self) -> None:
-        self.rng.seed(self.seed)
+    def reset(self, seed: int | None = None) -> None:
+        self.rng.seed(self.seed if seed is None else seed)
 
     def act(self, state: State) -> Action:
         actions = list(ActionType)

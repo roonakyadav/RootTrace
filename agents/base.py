@@ -9,7 +9,7 @@ from models.schemas import Action, State
 class Agent(Protocol):
     name: str
 
-    def reset(self) -> None:
+    def reset(self, seed: int | None = None) -> None:
         ...
 
     def act(self, state: State) -> Action:
