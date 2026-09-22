@@ -1,8 +1,20 @@
-venv/
 .venv/
+venv/
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 .env
-.env.example
-uv.lock
-pyproject.toml
+.env.*
+!.env.example
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Local tooling
+.DS_Store
