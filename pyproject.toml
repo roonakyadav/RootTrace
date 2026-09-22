@@ -28,3 +28,6 @@ include = ["agents*", "api*", "env*", "evaluation*", "models*"]
 
 [tool.setuptools]
 py-modules = ["cli", "inference"]
+
+[tool.setuptools.package-data]
+env = ["scenarios/*.yaml"]
