@@ -1,0 +1,40 @@
+id: hard-bad-deployment
+difficulty: hard
+description: A faulty auth deployment causes severe errors while misleading database telemetry points at a healthy DB. Diagnosis is required before rollback.
+goal: Roll back the faulty auth deployment after proper diagnosis and restore system stability.
+max_steps: 10
+success_conditions:
+  all_services_up: true
+  root_cause_fixed: true
+failure_conditions:
+  bad_actions_limit: 3
+  system_stability_below: 0.3
+true_root_cause: auth
+surface_symptom_target: db
+services:
+  - name: auth
+    status: degraded
+    error_rate: 0.9
+  - name: db
+    status: up
+  - name: payments
+    status: up
+  - name: frontend
+    status: up
+initial_logs:
+  - "DB: WARN - connection pool utilization: 68% (normal range: 60-75%)"
+  - "Auth service: ERROR - database read timeout after 3000ms"
+  - "Auth service: WARN - db connection queue depth: 47"
+  - "Auth service: ERROR - failed health check (downstream: postgres)"
+  - "DB: INFO - query execution times normal, no slow queries detected"
+  - "Auth service: ERROR - connection pool exhausted, retrying..."
+  - "INFO: auth-v2.1.0 deploy pipeline completed OK"
+  - "DB: INFO - replication lag: 2ms (healthy)"
+  - "ERROR: Frontend 502 bad gateway - upstream auth unreachable"
+  - "Auth service: WARN - memory RSS climbing: 1.1GB / 1.5GB limit"
+  - "DB: INFO - active connections: 42 (max: 200)"
+  - "Auth service: ERROR - goroutine leak detected in connection handler"
+initial_alerts:
+  - "CRITICAL: Auth service error rate critical (90%)"
+  - "WARNING: Database connection timeouts detected (verify before acting)"
+  - "INFO: auth-v2.1.0 recently deployed"

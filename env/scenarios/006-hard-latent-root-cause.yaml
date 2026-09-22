@@ -1,0 +1,32 @@
+id: hard-latent-root-cause
+difficulty: hard
+description: A latent root cause in payments is causing auth degradation. Surface telemetry makes auth look responsible.
+goal: Restore all services by identifying the hidden root cause (payments).
+max_steps: 12
+success_conditions:
+  all_services_up: true
+  root_cause_fixed: true
+failure_conditions:
+  bad_actions_limit: 4
+  system_stability_below: 0.25
+true_root_cause: payments
+surface_symptom_target: auth
+services:
+  - name: auth
+    status: degraded
+    error_rate: 0.5
+  - name: payments
+    status: up
+  - name: frontend
+    status: up
+initial_logs:
+  - "Auth service: ERROR - downstream service connection reset by peer"
+  - "Auth service: WARN - high latency on internal service mesh"
+  - "INFO: auth-v1.4.2 deploy pipeline completed OK"
+  - "Payments service: INFO - routine cleanup job running"
+  - "INFO: shared network bridge 'internal-vlan-2' is experiencing intermittent packet loss"
+  - "WARN: subtle latency increase in payments service persistence layer"
+  - "ERROR: auth service health check failed"
+initial_alerts:
+  - "CRITICAL: Auth service degraded"
+  - "INFO: Network bridge latency spike"

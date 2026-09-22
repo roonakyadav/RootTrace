@@ -1,0 +1,23 @@
+id: easy-auth-down
+difficulty: easy
+description: The authentication service is down. Restart it to restore service.
+goal: Restore all services to UP state.
+max_steps: 5
+success_conditions:
+  all_services_up: true
+  max_error_rate: 0.05
+failure_conditions:
+  bad_actions_limit: 2
+  max_steps_exceeded: true
+services:
+  - name: auth
+    status: down
+  - name: payments
+    status: up
+  - name: frontend
+    status: up
+initial_logs:
+  - "Auth service: CRITICAL - service failed to start"
+  - "Auth service: Database connection timeout"
+initial_alerts:
+  - "CRITICAL: Auth service is down"

@@ -1,0 +1,36 @@
+id: hard-cascading-failure
+difficulty: hard
+description: A critical dependency is experiencing high latency, causing a cascading failure. Multi-step reasoning is required.
+goal: Resolve cascading failures by fixing the root cause (DB).
+max_steps: 10
+success_conditions:
+  stability_score: 0.9
+  root_cause_fixed: true
+  strain_limit: 0.3
+failure_conditions:
+  bad_actions_limit: 3
+  system_stability_below: 0.3
+services:
+  - name: db
+    status: degraded
+  - name: auth
+    status: down
+  - name: payments
+    status: degraded
+  - name: frontend
+    status: up
+initial_logs:
+  - "WARN: High CPU on auth service instance a-123f."
+  - "ERROR: Upstream dependency timeout for service: auth"
+  - "INFO: User login failed for user: testuser"
+  - "WARN: Payments service experiencing intermittent timeouts."
+  - "INFO: Deployment pipeline #125 succeeded."
+  - "WARN: Query latency for a critical dependency has increased by 300%."
+  - "ERROR: Payments service crashed due to overload"
+  - "WARN: Frontend latency spike detected"
+  - "INFO: Restart recommended for payments service"
+initial_alerts:
+  - "CRITICAL: Auth service is down"
+  - "WARN: Payments service latency high"
+  - "INFO: High CPU on auth service (misleading)"
+  - "CRITICAL: Critical dependency latency spike detected"

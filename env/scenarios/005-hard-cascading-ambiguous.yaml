@@ -1,0 +1,34 @@
+id: hard-cascading-ambiguous
+difficulty: hard
+description: Both auth and payments are degraded. Causal reasoning is required to identify the shared dependency and roll back the correct deployment.
+goal: Restore all services by identifying and rolling back the root cause deployment.
+max_steps: 15
+success_conditions:
+  all_services_up: true
+  max_error_rate: 0.1
+failure_conditions:
+  bad_actions_limit: 4
+  system_stability_below: 0.25
+services:
+  - name: auth
+    status: degraded
+    error_rate: 0.4
+  - name: payments
+    status: degraded
+    error_rate: 0.4
+  - name: db
+    status: up
+  - name: frontend
+    status: down
+initial_logs:
+  - "Payments service: WARN - elevated transaction failure rate: 23%"
+  - "Auth service: ERROR - session validation latency spike: 800ms"
+  - "INFO: payments-v3.4.1 deploy pipeline completed OK"
+  - "Auth service: WARN - database connection pool shared with payments-db"
+  - "Frontend: ERROR - dependency health check failed (auth + payments)"
+  - "Payments service: ERROR - rollback checkpoint available: v3.3.9"
+  - "INFO: load balancer health checks: auth=degraded, payments=degraded, frontend=down"
+initial_alerts:
+  - "WARNING: Auth service degraded"
+  - "WARNING: Payments service degraded"
+  - "CRITICAL: Frontend is down"

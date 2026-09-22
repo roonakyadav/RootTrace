@@ -1,0 +1,24 @@
+id: medium-payments-degraded
+difficulty: medium
+description: The payments service is degraded due to high load. Scale it up to restore performance.
+goal: Stabilize system with minimal cost.
+max_steps: 8
+success_conditions:
+  no_service_down: true
+  latency_threshold: 200
+  cost_limit: 15
+failure_conditions:
+  bad_actions_limit: 3
+  system_stability_below: 0.4
+services:
+  - name: auth
+    status: up
+  - name: payments
+    status: degraded
+  - name: frontend
+    status: up
+initial_logs:
+  - "Payments service: WARNING - high CPU usage detected"
+  - "Payments service: Latency exceeded threshold"
+initial_alerts:
+  - "WARNING: Payments service performance degraded"
