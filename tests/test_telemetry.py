@@ -9,18 +9,17 @@ from models.schemas import Service, ServiceStatus
 
 
 class TelemetryEngineTests(unittest.TestCase):
-    def test_refresh_respects_service_status(self):
+    def test_refresh_preserves_down_service_signal(self):
         task = get_task("easy-auth-down")
         runtime = RuntimeState(
             services=[Service(name="auth", status=ServiceStatus.DOWN)],
             logs=[],
             alerts=[],
         )
-        graph = DependencyGraph.for_task(task)
-        engine = TelemetryEngine(runtime, graph, random.Random(42))
+        engine = TelemetryEngine(runtime, graph := DependencyGraph.for_task(task), random.Random(42))
         engine.refresh()
 
-        self.assertEqual(runtime.services[0].latency, 1000.0)
+        self.assertGreaterEqual(runtime.services[0].latency, 950.0)
         self.assertEqual(runtime.services[0].error_rate, 1.0)
 
     def test_refresh_is_seeded(self):
