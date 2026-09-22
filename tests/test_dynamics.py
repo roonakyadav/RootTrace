@@ -1,7 +1,7 @@
 import unittest
 
 from env.core import IncidentEnv
-from env.scenarios import get_task
+from env.tasks import get_task
 
 
 class DynamicsEngineTests(unittest.TestCase):
