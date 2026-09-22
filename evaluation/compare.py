@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Dict, Sequence
 
+from evaluation.benchmark import BenchmarkReport
+
 
 @dataclass(frozen=True)
 class AgentComparison:
@@ -18,7 +20,7 @@ class AgentComparison:
         }
 
 
-def compare_reports(reports: Sequence["BenchmarkReport"]) -> AgentComparison:
+def compare_reports(reports: Sequence[BenchmarkReport]) -> AgentComparison:
     if not reports:
         raise ValueError("At least one benchmark report is required")
 
