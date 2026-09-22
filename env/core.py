@@ -5,6 +5,7 @@ from env.grader import IncidentGrader
 from env.dependencies import DependencyGraph
 from env.resolution import matching_resolution, missing_diagnosis, is_fix_action
 from env.runtime import RuntimeState
+from env.telemetry import TelemetryEngine
 
 class IncidentEnv:
     ACTION_COSTS = {
@@ -36,52 +37,21 @@ class IncidentEnv:
         self.dependency_graph = DependencyGraph.for_task(self.task)
         self.dependencies = self.dependency_graph.as_dict()
         self.grader = IncidentGrader()
+        self.telemetry = TelemetryEngine(
+            self.runtime,
+            self.dependency_graph,
+            self.random,
+            self.RISK_THRESHOLD,
+        )
         self._update_metrics()
         self._update_alerts()  # Initial alerts based on status
         self.runtime.system_stability = self._calculate_stability()  # Correctly calculate initial stability
         self.runtime.previous_stability = self.runtime.system_stability  # Store previous stability for reward calculation
         self.runtime.is_done = False  # Track episode termination state
 
-    def _update_metrics(self):
-        for service in self.runtime.services:
-            if service.status == ServiceStatus.UP:
-                service.latency = 20 + (10 * self.runtime.system_strain)
-                service.error_rate = 0.01 + (0.05 * self.runtime.system_strain)
-            elif service.status == ServiceStatus.DEGRADED:
-                service.latency = 200 + (100 * self.runtime.system_strain)
-                service.error_rate = 0.15 + (0.1 * self.runtime.system_strain)
-            else:
-                service.latency = 1000.0
-                service.error_rate = 1.0
-
-            # Apply effect of isolate_service (latency increase on dependents)
-            for isolated_name in self.runtime.isolated_services:
-                if service.name in self.dependency_graph.dependents_of(isolated_name):
-                    service.latency *= 1.5
-
-            # Apply effect of drain_traffic (reduce error_rate on frontend)
-            if service.name == "frontend" and self.runtime.drained_services:
-                service.error_rate *= 0.5
-
-            # Apply effect of partial fixes (e.g., restart on bad_deployment)
-            if service.name in self.runtime.partial_fixes:
-                service.error_rate = 0.5
-
-            # Add controlled noise (±5%)
-            noise_latency = self.random.uniform(-0.05, 0.05)
-            noise_error = self.random.uniform(-0.05, 0.05)
-
-            service.latency *= (1 + noise_latency)
-            service.error_rate *= (1 + noise_error)
-
-            # Apply Hidden Risk Consequence: Subtle latency increase as risk builds
-            if self.runtime.hidden_risk > 0:
-                risk_multiplier = 1.0 + (min(self.runtime.hidden_risk, self.RISK_THRESHOLD) * 0.2)
-                service.latency *= risk_multiplier
-
-            # Ensure bounds
-            service.latency = max(1.0, service.latency)
-            service.error_rate = max(0.0, min(1.0, service.error_rate))
+    def _update_metrics(self) -> None:
+        # Kept as a compatibility seam for the existing runtime.
+        self.telemetry.refresh()
 
     def get_state(self) -> State:
         return State(
