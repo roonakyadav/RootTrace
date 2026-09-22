@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     yield
 
 # ✅ DEFINE APP WITH LIFESPAN (CRITICAL)
-app = FastAPI(title="AI Operations Incident Response Environment", lifespan=lifespan)
+app = FastAPI(title="RootTrace Agent Evaluation Environment", lifespan=lifespan)
 
 class ResetRequest(BaseModel):
     task_id: Optional[str] = "easy"

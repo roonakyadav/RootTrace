@@ -1,15 +1,14 @@
-name: ai-incident-openenv
+name: roottrace
 version: "1.0.0"
 description: >
-  OpenEnv environment for evaluating AI agents on distributed system
-  incident response. Agents diagnose and recover multi-service failures
-  by reasoning over logs, alerts, and metrics across 3 tasks of
-  increasing difficulty.
+  Causal incident environment for evaluating AI agents on distributed-system
+  diagnosis, recovery, and operational decision-making.
 tags:
-  - openenv
+  - ai-agents
   - incident-response
   - sre
   - devops
+  - agent-evaluation
   - multi-step-reasoning
 
 tasks:
@@ -23,46 +22,36 @@ tasks:
     difficulty: medium
     max_steps: 8
     success_threshold: 0.6
-    description: >
-      Payments service degraded under high load.
-      Scale and stabilize before error rate breaches SLA.
+    description: Payments service degraded under high load. Scale and stabilize.
 
   - id: hard-bad-deployment
     difficulty: hard
     max_steps: 10
     success_threshold: 0.6
-    description: >
-      Auth failure from bad deployment. Misleading DB logs.
-      Only rollback_service fully resolves it.
+    description: Misleading database evidence hides a faulty auth deployment.
 
   - id: hard-cascading-failure
     difficulty: hard
     max_steps: 10
     success_threshold: 0.6
-    description: >
-      Critical DB dependency causing cascading failure across auth and payments.
-      Multi-step reasoning required to identify and fix root cause.
+    description: Database degradation causes failures to propagate downstream.
 
   - id: hard-cascading-ambiguous
     difficulty: hard
     max_steps: 15
     success_threshold: 0.6
-    description: >
-      Both auth and payments degraded. Shared DB dependency causes
-      re-degradation if wrong service fixed first. Order of actions matters.
+    description: Shared dependency failure requires correct diagnosis and action ordering.
 
-  - id: hard-latent-root-cause 
-    difficulty: hard 
-    max_steps: 12 
-    success_threshold: 0.6 
-    description: > 
-      Latent root cause in payments causes auth degradation. 
-      Misleading logs implicate auth. Delayed failure if wrong fix applied. 
+  - id: hard-latent-root-cause
+    difficulty: hard
+    max_steps: 12
+    success_threshold: 0.6
+    description: A latent payments issue presents as an auth failure.
 
 action_space:
   type: structured
   schema:
-    action_type: string (enum of 11 values)
+    action_type: string
     target: string (optional)
   actions:
     - restart_service
@@ -70,12 +59,12 @@ action_space:
     - isolate_service
     - check_logs
     - check_metrics
-    - scale          # FINALE FIX 5: Changed from scale_service to match enum
+    - scale
     - drain_traffic
     - restore_traffic
     - optimize_db
     - escalate
-    - ignore         # FINALE FIX 5: Added missing ignore action
+    - ignore
 
 observation_space:
   - services: list of service state objects
@@ -85,8 +74,10 @@ observation_space:
   - system_stability: float [0.0, 1.0]
   - system_strain: float [0.0, 1.0]
   - time_step: integer
+  - diagnosed_targets: list of services
 
 endpoints:
   reset: POST /reset
   step: POST /step
   state: GET /state
+  health: GET /health
