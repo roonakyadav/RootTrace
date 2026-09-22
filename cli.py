@@ -7,6 +7,7 @@ from pathlib import Path
 from env.scenarios import load_tasks
 from env.validation import validate_tasks
 from evaluation.benchmark import BenchmarkRunner, DEFAULT_TASKS
+from evaluation.compare import compare_reports
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -28,6 +29,18 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark.add_argument("--task", action="append", dest="tasks")
     benchmark.add_argument("--seed", action="append", type=int, dest="seeds")
     benchmark.add_argument("--output", type=Path)
+
+    compare = subparsers.add_parser("compare", help="Compare two or more agents")
+    compare.add_argument(
+        "--agent",
+        action="append",
+        dest="agents",
+        required=True,
+        help="Agent name; repeat for each agent to compare",
+    )
+    compare.add_argument("--task", action="append", dest="tasks")
+    compare.add_argument("--seed", action="append", type=int, dest="seeds")
+    compare.add_argument("--output", type=Path)
 
     return parser
 
@@ -56,6 +69,27 @@ def main(argv=None) -> int:
         print(json.dumps(report.to_dict(), indent=2))
         if args.output:
             report.save_json(args.output)
+        return 0
+
+    if args.command == "compare":
+        runner = BenchmarkRunner()
+        reports = [
+            runner.run_report(
+                agent_name=agent_name,
+                task_ids=args.tasks or DEFAULT_TASKS,
+                seeds=args.seeds or [42],
+            )
+            for agent_name in args.agents
+        ]
+        result = compare_reports(reports)
+        payload = result.to_dict()
+        print(json.dumps(payload, indent=2))
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(
+                json.dumps(payload, indent=2),
+                encoding="utf-8",
+            )
         return 0
 
     return 2
