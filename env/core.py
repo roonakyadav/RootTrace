@@ -5,6 +5,7 @@ from env.grader import IncidentGrader
 from env.dependencies import DependencyGraph
 from env.resolution import matching_resolution, missing_diagnosis, is_fix_action
 from env.faults import FaultInjector
+from env.observability import ObservabilityEngine
 from env.runtime import RuntimeState
 from env.telemetry import TelemetryEngine
 
@@ -47,6 +48,12 @@ class IncidentEnv:
         self.fault_injector = FaultInjector(
             self.runtime,
             self.dependency_graph,
+            self.random,
+        )
+        self.observability = ObservabilityEngine(
+            self.runtime,
+            self.dependency_graph,
+            self.task,
             self.random,
         )
         self._update_metrics()
@@ -453,78 +460,8 @@ class IncidentEnv:
                         service.error_rate = 0.01
                         self.runtime.logs.append(f"{service.name.capitalize()} recovered as dependencies stabilized")
 
-    def _update_logs(self, action: Action, reward_info: Dict[str, Any]):
-        new_logs = []
-
-        if reward_info["type"] == "correct_fix":
-            new_logs.append(f"{action.target.capitalize()} service recovered successfully")
-        elif reward_info["type"] == "wrong_fix":
-            new_logs.append(f"Failed to fix {action.target.capitalize()}: dependency unresolved")
-        elif reward_info["type"] == "useless_action":
-            new_logs.append(f"Action {action.action_type} on {action.target} had no impact")
-
-        if self.random.random() < 0.25:
-            neutral_logs = [
-                "INFO: Background job completed successfully",
-                "INFO: System health check passed",
-                "INFO: Routine log rotation completed",
-                "INFO: Minor latency variation observed in secondary cluster"
-            ]
-            new_logs.append(self.random.choice(neutral_logs))
-
-        for s in self.runtime.services:
-            if s.status == ServiceStatus.DEGRADED:
-                for root, dependents in self.dependency_graph.items():
-                    if s.name in dependents:
-                        root_service = next((svc for svc in self.runtime.services if svc.name == root), None)
-                        if root_service and root_service.status != ServiceStatus.UP:
-                            new_logs.append(f"{s.name.capitalize()} degraded due to {root} failure")
-                            break
-            elif s.status == ServiceStatus.DOWN:
-                for root, dependents in self.dependency_graph.items():
-                    if s.name in dependents:
-                        root_service = next((svc for svc in self.runtime.services if svc.name == root), None)
-                        if root_service and root_service.status == ServiceStatus.DOWN:
-                            new_logs.append(f"{s.name.capitalize()} offline due to {root} outage")
-                            break
-
-        if self.runtime.system_stability < 0.5:
-            new_logs.append("System instability reaching critical levels")
-
-        if self.task.id == "hard-cascading-failure":
-            if self.runtime.time_step % 2 == 0:
-                misleading_logs = [
-                    "WARN: Payments service instability detected (possible root cause)",
-                    "ERROR: Frontend experiencing cascading failures from payments",
-                    "WARN: Auth service showing signs of failure - investigate immediately",
-                    "INFO: Recommendation: Focus on stabilizing payments service first"
-                ]
-                new_logs.append(self.random.choice(misleading_logs))
-
-            if self.runtime.time_step == 3:
-                new_logs.append("CRITICAL: Multiple services failing - prioritize immediate recovery over root cause analysis")
-
-        if self.task.id == "hard-latent-root-cause":
-            if self.runtime.time_step == 1:
-                new_logs.append("INFO: cross-service dependency check: auth -> (unresolved_upstream)")
-
-            if self.runtime.time_step == 3:
-                new_logs.append("WARN: payments service internal queue depth increasing subtly")
-
-            if self.runtime.time_step == 6:
-                new_logs.append("INFO: deployment logs show payments-v3.5.0 has shared resources with auth mesh")
-
-        # FIX 1: Misleading logs for hard-bad-deployment to reinforce DB honeypot
-        if self.task.id == "hard-bad-deployment":
-            if self.runtime.time_step == 1:
-                new_logs.append("DB: WARN - connection spike correlated with auth errors (investigate DB first?)")
-            if self.runtime.time_step == 2:
-                new_logs.append("DB: INFO - all internal DB health checks passing, disk IO normal")
-            if self.runtime.time_step == 4:
-                new_logs.append("Auth service: ERROR - goroutine count: 8,412 (expected: <500) — possible memory leak in v2.1.0")
-
-        self.runtime.logs.extend(new_logs)
-        self.runtime.logs = self.runtime.logs[-10:]
+    def _update_logs(self, action: Action, reward_info: Dict[str, Any]) -> None:
+        self.observability.record_action(action, reward_info)
 
     def _apply_action(self, action: Action) -> Dict[str, Any]:
         target_service = next((s for s in self.runtime.services if s.name == action.target), None)
@@ -788,12 +725,6 @@ class IncidentEnv:
         up_services = sum(1 for s in self.runtime.services if s.status == ServiceStatus.UP)
         return up_services / len(self.runtime.services) if self.runtime.services else 0.0
 
-    def _update_alerts(self):
-        new_alerts = []
-        for service in self.runtime.services:
-            if service.status == ServiceStatus.DOWN:
-                new_alerts.append(f"CRITICAL: {service.name} is down")
-            elif service.status == ServiceStatus.DEGRADED:
-                new_alerts.append(f"WARNING: {service.name} degraded")
+    def _update_alerts(self) -> None:
+        self.observability.refresh_alerts()
 
-        self.runtime.alerts = new_alerts
