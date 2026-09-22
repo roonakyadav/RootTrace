@@ -15,6 +15,8 @@ class TraceStep:
     state_after: Dict[str, Any]
     done: bool
     info: Dict[str, Any] = field(default_factory=dict)
+    local_regret: float | None = None
+    best_counterfactual_reward: float | None = None
 
 
 @dataclass
@@ -39,6 +41,8 @@ class EpisodeTrace:
                     "state_after": item.state_after,
                     "done": item.done,
                     "info": item.info,
+                    "local_regret": item.local_regret,
+                    "best_counterfactual_reward": item.best_counterfactual_reward,
                 }
                 for item in self.steps
             ],
