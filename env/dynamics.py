@@ -103,7 +103,7 @@ class DynamicsEngine:
         self.propagate_failures()
 
         fault_policy = self.task.fault_policy.autonomous_degradation
-        interval = int(fault_policy.get("interval", 0))
+        interval = int(fault_policy.interval)
         if (
             self.runtime.time_step > 0
             and interval > 0
