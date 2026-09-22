@@ -6,6 +6,7 @@ max_steps: 15
 success_conditions:
   all_services_up: true
   max_error_rate: 0.1
+surface_symptom_target: auth
 failure_conditions:
   bad_actions_limit: 4
   system_stability_below: 0.25

@@ -3,6 +3,7 @@ from typing import List, Dict, Any
 from models.schemas import State, Service, ServiceStatus, Action, ActionType, Task, TaskDifficulty
 from env.grader import IncidentGrader
 from env.dependencies import DependencyGraph
+from env.resolution import matching_resolution, missing_diagnosis, is_fix_action
 from env.runtime import RuntimeState
 
 class IncidentEnv:
@@ -552,29 +553,29 @@ class IncidentEnv:
     def _apply_action(self, action: Action) -> Dict[str, Any]:
         target_service = next((s for s in self.runtime.services if s.name == action.target), None)
 
-        # Hidden Root Cause mechanism
-        if self.true_root_cause and action.target == self.true_root_cause and action.action_type in [ActionType.RESTART_SERVICE, ActionType.ROLLBACK_SERVICE, ActionType.SCALE]:
-            # FIX 1: For hard-bad-deployment, require diagnosis of auth AND check_metrics before rollback succeeds
-            if self.task.id == "hard-bad-deployment" and action.action_type == ActionType.ROLLBACK_SERVICE:
-                diagnosed_auth = "auth" in self.runtime.diagnosed_targets
-                checked_metrics = any(
-                    a.action_type == ActionType.CHECK_METRICS and a.target == "auth"
-                    for a in self.runtime.history
+        # Resolution policy comes from the scenario definition, not its task ID.
+        resolution = matching_resolution(self.task, action)
+        if self.true_root_cause and action.target == self.true_root_cause and resolution:
+            missing = missing_diagnosis(self.task, self.runtime.history)
+            if missing:
+                if target_service:
+                    target_service.error_rate = max(0.4, target_service.error_rate - 0.3)
+                self.runtime.logs.append(
+                    f"{action.target.capitalize()} resolution blocked: required diagnosis incomplete"
                 )
-                if not (diagnosed_auth and checked_metrics):
-                    # Incomplete diagnosis — partial rollback only
-                    if target_service:
-                        target_service.error_rate = max(0.4, target_service.error_rate - 0.3)
-                    self.runtime.logs.append("Auth service: WARN - rollback initiated but validation incomplete, service still unstable")
-                    self.runtime.logs.append("Auth service: INFO - recommend checking logs and metrics before confirming rollback")
-                    return {"type": "partial_fix", "target": action.target}
+                return {
+                    "type": "partial_fix",
+                    "target": action.target,
+                    "missing_diagnosis": missing,
+                }
 
-            # Full correct fix
             self.runtime.fake_recovery_timer = None
             self.runtime.root_cause_fixed = True
+
             if target_service:
                 target_service.status = ServiceStatus.UP
                 target_service.error_rate = 0.01
+
             if self.surface_symptom_target:
                 symptom_service = self._get_service(self.surface_symptom_target)
                 if symptom_service:
@@ -582,45 +583,66 @@ class IncidentEnv:
                     symptom_service.error_rate = 0.01
 
             is_lucky_guess = action.target not in self.runtime.diagnosed_targets
-            return {"type": "correct_fix", "target": action.target, "root_cause_fixed": True, "is_lucky_guess": is_lucky_guess}
+            return {
+                "type": "correct_fix",
+                "target": action.target,
+                "root_cause_fixed": True,
+                "is_lucky_guess": is_lucky_guess,
+            }
 
-        if self.surface_symptom_target and action.target == self.surface_symptom_target and action.action_type in [ActionType.RESTART_SERVICE, ActionType.ROLLBACK_SERVICE, ActionType.SCALE]:
-            if target_service and target_service.status != ServiceStatus.UP:
-                target_service.status = ServiceStatus.UP
-                target_service.error_rate = 0.05
-                self.runtime.fake_recovery_timer = 2
-                return {"type": "temporary_fix", "target": action.target, "surface_symptom_fixed": True}
+        if (
+            self.surface_symptom_target
+            and action.target == self.surface_symptom_target
+            and is_fix_action(action)
+            and target_service
+            and target_service.status != ServiceStatus.UP
+        ):
+            target_service.status = ServiceStatus.UP
+            target_service.error_rate = 0.05
+            self.runtime.fake_recovery_timer = 2
+            return {
+                "type": "temporary_fix",
+                "target": action.target,
+                "surface_symptom_fixed": True,
+            }
 
-        root_cause_service = None
-        if self.task.id == "hard-cascading-failure":
-            root_cause_service = next((s for s in self.runtime.services if s.name == "db"), None)
-        elif self.task.id == "medium-payments-degraded":
-            root_cause_service = next((s for s in self.runtime.services if s.name == "payments"), None)
-        elif self.task.id == "hard-bad-deployment":
-            root_cause_service = next((s for s in self.runtime.services if s.name == "auth"), None)
-        elif self.task.id == "hard-cascading-ambiguous":
-            root_cause_service = next((s for s in self.runtime.services if s.name == "payments"), None)
+        root_cause_service = self._get_service(self.true_root_cause) if self.true_root_cause else None
 
-        if (self.task.id in ["hard-cascading-failure", "hard-bad-deployment", "hard-cascading-ambiguous"]) and root_cause_service and root_cause_service.status != ServiceStatus.UP:
-            wrong_target_count = 0
-            for past_action in self.runtime.history:
-                if past_action.target != root_cause_service.name and past_action.action_type not in [ActionType.CHECK_LOGS, ActionType.CHECK_METRICS, ActionType.IGNORE]:
-                    wrong_target_count += 1
-
-            if wrong_target_count >= 2 and action.target != root_cause_service.name and action.action_type not in [ActionType.CHECK_LOGS, ActionType.CHECK_METRICS, ActionType.IGNORE]:
+        if (
+            root_cause_service
+            and root_cause_service.status != ServiceStatus.UP
+            and action.target != root_cause_service.name
+            and is_fix_action(action)
+        ):
+            wrong_target_count = sum(
+                1
+                for past_action in self.runtime.history
+                if past_action.target != root_cause_service.name
+                and is_fix_action(past_action)
+            )
+            if wrong_target_count >= 2:
                 self.runtime.system_strain += 0.15
-                self.runtime.logs.append("Repeated incorrect mitigation detected - focusing on symptoms instead of root cause")
+                self.runtime.logs.append(
+                    "Repeated incorrect mitigation detected - focusing on symptoms instead of root cause"
+                )
+
+        # A non-declared fix on the true root cause may produce only partial recovery.
+        if (
+            self.true_root_cause
+            and action.target == self.true_root_cause
+            and is_fix_action(action)
+            and target_service
+            and action.action_type != ActionType.CHECK_LOGS
+        ):
+            if target_service.status != ServiceStatus.UP:
+                target_service.status = ServiceStatus.DEGRADED
+                if target_service.name not in self.runtime.partial_fixes:
+                    self.runtime.partial_fixes.append(target_service.name)
+                return {"type": "partial_fix", "target": action.target}
 
         if action.action_type == ActionType.RESTART_SERVICE:
             if not target_service:
                 return {"type": "unknown", "target": action.target}
-
-            if self.task.id == "hard-bad-deployment" and target_service.name == "auth":
-                if target_service.status != ServiceStatus.UP:
-                    target_service.status = ServiceStatus.DEGRADED
-                    if target_service.name not in self.runtime.partial_fixes:
-                        self.runtime.partial_fixes.append(target_service.name)
-                    return {"type": "partial_fix", "target": action.target}
 
             for root, dependents in self.dependency_graph.items():
                 if action.target in dependents:
@@ -633,13 +655,6 @@ class IncidentEnv:
                 is_lucky_guess = action.target not in self.runtime.diagnosed_targets
                 return {"type": "correct_fix", "target": action.target, "is_lucky_guess": is_lucky_guess}
             elif target_service.status == ServiceStatus.DEGRADED:
-                if self.task.id == "hard-cascading-ambiguous" and target_service.name == "auth":
-                    payments_service = self._get_service("payments")
-                    if payments_service and payments_service.status != ServiceStatus.UP:
-                        target_service.status = ServiceStatus.UP
-                        self.runtime.redegrade_timers["auth"] = 2
-                        return {"type": "temporary_fix", "target": action.target}
-
                 return {"type": "wrong_fix", "target": action.target}
             else:
                 return {"type": "useless_action", "target": action.target}
@@ -648,30 +663,8 @@ class IncidentEnv:
             if not target_service:
                 return {"type": "unknown", "target": action.target}
 
-            if self.task.id == "hard-bad-deployment" and target_service.name == "auth":
-                # This case is already handled above in the true_root_cause block.
-                # Reaching here means it passed the diagnosis gate — apply the fix.
-                target_service.status = ServiceStatus.UP
-                target_service.error_rate = 0.01
-                if target_service.name in self.runtime.partial_fixes:
-                    self.runtime.partial_fixes.remove(target_service.name)
-                is_lucky_guess = action.target not in self.runtime.diagnosed_targets
-                return {"type": "correct_fix", "target": action.target, "is_lucky_guess": is_lucky_guess}
-
-            elif self.task.id == "hard-cascading-ambiguous" and target_service.name == "payments":
-                target_service.status = ServiceStatus.UP
-                target_service.error_rate = 0.01
-                auth_service = self._get_service("auth")
-                if auth_service and auth_service.status != ServiceStatus.DOWN:
-                    auth_service.status = ServiceStatus.UP
-                    auth_service.error_rate = 0.01
-                    if "auth" in self.runtime.redegrade_timers:
-                        del self.runtime.redegrade_timers["auth"]
-                is_lucky_guess = action.target not in self.runtime.diagnosed_targets
-                return {"type": "correct_fix", "target": action.target, "is_lucky_guess": is_lucky_guess}
-            else:
-                self.runtime.system_stability = max(0.0, self.runtime.system_stability - 0.1)
-                return {"type": "wrong_fix", "target": action.target}
+            self.runtime.system_stability = max(0.0, self.runtime.system_stability - 0.1)
+            return {"type": "wrong_fix", "target": action.target}
 
         elif action.action_type == ActionType.ISOLATE_SERVICE:
             if not target_service:
@@ -713,8 +706,7 @@ class IncidentEnv:
 
             if root_cause_service and root_cause_service.status != ServiceStatus.UP and action.target != root_cause_service.name:
                 self.runtime.total_cost += 2.0
-                if self.task.id in ["hard-cascading-failure", "hard-bad-deployment"]:
-                    self.runtime.system_strain += 0.1
+                self.runtime.system_strain += 0.1
 
             if target_service.status == ServiceStatus.DEGRADED:
                 target_service.status = ServiceStatus.UP
