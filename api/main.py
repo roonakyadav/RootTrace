@@ -231,6 +231,14 @@ async def delete_session(session_id: str):
     return {"deleted": True, "session_id": session_id}
 
 
+
+
+# Optional lightweight browser demo preserved from the original prototype.
+import os
+
+if os.path.isdir("static"):
+    app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
 @app.get("/baseline")
 async def run_baseline():
     from agents.rule_based import DependencyAwareAgent
