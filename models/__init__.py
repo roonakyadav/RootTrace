@@ -1,0 +1,1 @@
+"""RootTrace data models."""

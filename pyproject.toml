@@ -21,3 +21,10 @@ dependencies = [
 [project.scripts]
 roottrace = "cli:main"
 roottrace-server = "api.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["agents*", "api*", "env*", "evaluation*", "models*"]
+
+[tool.setuptools]
+py-modules = ["cli", "inference"]
