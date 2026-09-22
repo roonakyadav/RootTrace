@@ -1,3 +1,4 @@
+from copy import deepcopy
 import random
 from typing import List, Dict, Any
 from models.schemas import State, Service, ServiceStatus, Action, ActionType, Task, TaskDifficulty
