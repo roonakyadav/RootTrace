@@ -1,11 +1,15 @@
 import unittest
 
 from env.dependencies import DependencyGraph
+from env.scenarios import load_tasks
 
 
 class DependencyGraphTests(unittest.TestCase):
-    def test_task_topology_is_explicit(self):
-        task = type("Task", (), {"id": "hard-cascading-failure"})()
+    def test_task_topology_is_loaded_from_scenario(self):
+        task = next(
+            task for task in load_tasks()
+            if task.id == "hard-cascading-failure"
+        )
         graph = DependencyGraph.for_task(task)
         self.assertEqual(graph.dependents_of("db"), ("auth",))
         self.assertEqual(
@@ -25,7 +29,7 @@ class DependencyGraphTests(unittest.TestCase):
             ("auth", "db", "payments"),
         )
 
-    def test_serializable_mapping(self):
+    def test_state_mapping_is_serializable(self):
         graph = DependencyGraph.from_mapping({"auth": ["frontend"]})
         self.assertEqual(graph.as_dict(), {"auth": ["frontend"]})
 
