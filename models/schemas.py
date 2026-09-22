@@ -7,6 +7,23 @@ class ServiceStatus(str, Enum):
     DOWN = "down"
     DEGRADED = "degraded"
 
+class EvidenceType(str, Enum):
+    LOG = "log"
+    METRIC = "metric"
+    ALERT = "alert"
+    TRACE = "trace"
+    STATE = "state"
+
+
+class Evidence(BaseModel):
+    id: str
+    type: EvidenceType
+    source: str
+    content: str
+    timestamp: int = 0
+    reliability: float = 1.0
+
+
 class Service(BaseModel):
     name: str
     status: ServiceStatus
@@ -48,6 +65,7 @@ class State(BaseModel):
     system_stability: float
     risky_actions_count: int
     dependencies: Dict[str, List[str]] = Field(default_factory=dict)
+    evidence: List[Evidence] = Field(default_factory=list)
     dynamics: Dict[str, Any] = Field(default_factory=dict)
     system_strain: float = 0.0
     symptom_fix_count: int = 0

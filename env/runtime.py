@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
-from models.schemas import Service, Task
+from models.schemas import Evidence, Service, Task
 
 
 @dataclass
@@ -13,6 +13,7 @@ class RuntimeState:
     services: List[Service]
     logs: List[str]
     alerts: List[str]
+    evidence: List[Evidence] = field(default_factory=list)
 
     time_step: int = 0
     history: List[Any] = field(default_factory=list)

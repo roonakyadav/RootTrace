@@ -89,6 +89,7 @@ class IncidentEnv:
             system_stability=self.runtime.system_stability,
             risky_actions_count=self.runtime.risky_actions_count,
             dependencies=self.dependencies,
+            evidence=list(self.runtime.evidence),
             system_strain=self.runtime.system_strain,
             symptom_fix_count=self.runtime.symptom_fix_count,
             root_cause_step=self.runtime.root_cause_step,

@@ -5,6 +5,7 @@ from typing import Any, Dict
 
 from env.dependencies import DependencyGraph
 from env.runtime import RuntimeState
+from env.evidence import EvidenceStore
 from models.schemas import Action, ServiceStatus, Task
 
 
@@ -15,6 +16,7 @@ class ObservabilityEngine:
         self.dependency_graph = dependency_graph
         self.task = task
         self.rng = rng
+        self.evidence = EvidenceStore(runtime)
 
     def refresh_alerts(self) -> None:
         alerts = []
@@ -24,6 +26,8 @@ class ObservabilityEngine:
             elif service.status == ServiceStatus.DEGRADED:
                 alerts.append(f"WARNING: {service.name} degraded")
         self.runtime.alerts = alerts
+        for alert in alerts:
+            self.evidence.ingest_alert(alert, self.runtime.time_step)
 
     def record_action(self, action: Action, reward_info: Dict[str, Any]) -> None:
         logs = []
@@ -60,6 +64,8 @@ class ObservabilityEngine:
         self._scenario_logs(logs)
         self.runtime.logs.extend(logs)
         self.runtime.logs = self.runtime.logs[-10:]
+        for log in logs:
+            self.evidence.ingest_log(log, self.runtime.time_step)
 
     def _scenario_logs(self, logs) -> None:
         if self.task.id == "hard-cascading-failure" and self.runtime.time_step % 2 == 0:
