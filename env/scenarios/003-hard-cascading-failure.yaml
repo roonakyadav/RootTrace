@@ -17,6 +17,12 @@ resolution_actions:
 diagnosis_requirements:
   - action: check_logs
     target: db
+fault_policy:
+  autonomous_degradation:
+    enabled: true
+    interval: 2
+    exclude_services:
+      - db
 services:
   - name: db
     status: degraded

@@ -4,6 +4,7 @@ from models.schemas import State, Service, ServiceStatus, Action, ActionType, Ta
 from env.grader import IncidentGrader
 from env.dependencies import DependencyGraph
 from env.resolution import matching_resolution, missing_diagnosis, is_fix_action
+from env.faults import FaultInjector
 from env.runtime import RuntimeState
 from env.telemetry import TelemetryEngine
 
@@ -42,6 +43,11 @@ class IncidentEnv:
             self.dependency_graph,
             self.random,
             self.RISK_THRESHOLD,
+        )
+        self.fault_injector = FaultInjector(
+            self.runtime,
+            self.dependency_graph,
+            self.random,
         )
         self._update_metrics()
         self._update_alerts()  # Initial alerts based on status
@@ -744,12 +750,15 @@ class IncidentEnv:
                         if len(self.runtime.history) >= (recovery_threshold + 1):
                             payments_service.status = ServiceStatus.UP
 
-            # FIX 2: Dynamic environment degradation every 2-3 steps for hard tasks
-            # Services degrade on their own regardless of agent action, forcing urgency
-            if self.runtime.time_step > 0 and not self._all_services_up():
-                degrade_interval = 2 if self.task.id in ["hard-bad-deployment", "hard-cascading-failure"] else 3
-                if self.runtime.time_step % degrade_interval == 0:
-                    self._autonomous_degradation()
+            fault_policy = self.task.fault_policy.get("autonomous_degradation", {})
+            interval = int(fault_policy.get("interval", 0))
+            if (
+                self.runtime.time_step > 0
+                and interval > 0
+                and self.runtime.time_step % interval == 0
+                and not self._all_services_up()
+            ):
+                self._autonomous_degradation()
 
         elif self.task.difficulty == TaskDifficulty.MEDIUM:
             if self.runtime.time_step % 3 == 0:
@@ -765,35 +774,8 @@ class IncidentEnv:
                         payment_service.status = ServiceStatus.DEGRADED
 
     def _autonomous_degradation(self):
-        """FIX 2: Autonomously degrade a healthy service every N steps on hard tasks.
-        This forces the agent to race against a deteriorating system, not solve a static puzzle."""
-        # Only degrade if root cause is still unfixed
-        if self.runtime.root_cause_fixed:
-            return
-
-        # Pick a candidate: prefer UP services that are dependents of broken services
-        candidates = []
-        for root, dependents in self.dependency_graph.items():
-            root_svc = self._get_service(root)
-            if root_svc and root_svc.status != ServiceStatus.UP:
-                for dep_name in dependents:
-                    dep_svc = self._get_service(dep_name)
-                    if dep_svc and dep_svc.status == ServiceStatus.UP:
-                        candidates.append(dep_svc)
-
-        if not candidates:
-            # Fall back: any UP service (except db on cascading-failure, to avoid unfair instant loss)
-            candidates = [
-                s for s in self.runtime.services
-                if s.status == ServiceStatus.UP and not (self.task.id == "hard-cascading-failure" and s.name == "db")
-            ]
-
-        if candidates:
-            target = self.random.choice(candidates)
-            target.status = ServiceStatus.DEGRADED
-            target.error_rate = min(1.0, target.error_rate + 0.3)
-            self.runtime.logs.append(f"WARN: {target.name} degrading autonomously — unresolved root cause spreading")
-            self.runtime.system_strain += 0.1
+        policy = self.task.fault_policy.get("autonomous_degradation", {})
+        return self.fault_injector.autonomous_degradation(policy)
 
     def _all_services_up(self) -> bool:
         # BUG FIX 2: Only block termination if timer is actively counting down (> 0)

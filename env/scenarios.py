@@ -43,6 +43,7 @@ def _build_task(data: dict) -> Task:
         surface_symptom_target=data.get("surface_symptom_target"),
         diagnosis_requirements=list(data.get("diagnosis_requirements", [])),
         resolution_actions=list(data.get("resolution_actions", [])),
+        fault_policy=dict(data.get("fault_policy", {})),
     )
 
 

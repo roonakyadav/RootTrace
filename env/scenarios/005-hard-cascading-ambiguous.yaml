@@ -19,6 +19,10 @@ diagnosis_requirements:
     target: payments
   - action: check_metrics
     target: payments
+fault_policy:
+  autonomous_degradation:
+    enabled: true
+    interval: 3
 services:
   - name: auth
     status: degraded

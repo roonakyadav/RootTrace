@@ -19,6 +19,10 @@ diagnosis_requirements:
     target: auth
   - action: check_metrics
     target: auth
+fault_policy:
+  autonomous_degradation:
+    enabled: true
+    interval: 2
 services:
   - name: auth
     status: degraded

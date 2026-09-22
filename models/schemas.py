@@ -108,3 +108,4 @@ class Task(BaseModel):
     surface_symptom_target: Optional[str] = None
     diagnosis_requirements: List[Dict[str, str]] = Field(default_factory=list)
     resolution_actions: List[Dict[str, str]] = Field(default_factory=list)
+    fault_policy: Dict[str, Any] = Field(default_factory=dict)
