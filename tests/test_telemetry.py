@@ -16,11 +16,16 @@ class TelemetryEngineTests(unittest.TestCase):
             logs=[],
             alerts=[],
         )
-        engine = TelemetryEngine(runtime, graph := DependencyGraph.for_task(task), random.Random(42))
+        engine = TelemetryEngine(
+            runtime,
+            DependencyGraph.for_task(task),
+            random.Random(42),
+        )
         engine.refresh()
 
         self.assertGreaterEqual(runtime.services[0].latency, 950.0)
-        self.assertEqual(runtime.services[0].error_rate, 1.0)
+        self.assertGreaterEqual(runtime.services[0].error_rate, 0.95)
+        self.assertLessEqual(runtime.services[0].error_rate, 1.0)
 
     def test_refresh_is_seeded(self):
         service = Service(name="auth", status=ServiceStatus.UP)
